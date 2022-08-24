@@ -1,4 +1,12 @@
-import { View, Animated, PanResponder, Dimensions } from "react-native";
+import {
+  View,
+  Animated,
+  PanResponder,
+  Dimensions,
+  SafeAreaView,
+  LayoutAnimation,
+  UIManager,
+} from "react-native";
 import React, { Component } from "react";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -30,6 +38,18 @@ class Deck extends Component {
       },
     });
     this.state = { panResponder, position, index: 0 };
+  }
+
+  UNSAFE_componentWillReceiveProps(nextProps) {
+    if (nextProps.data !== this.props.data) {
+      this.setState({ index: 0 });
+    }
+  }
+
+  componentDidUpdate() {
+    UIManager.setLayoutAnimationEnabledExperimental &&
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    LayoutAnimation.spring();
   }
 
   forceSwipe(direction) {
@@ -79,25 +99,57 @@ class Deck extends Component {
   }
 
   renderCards() {
-    return this.props.data.map((item, index) => {
-      if (index === 0) {
+    if (this.state.index >= this.props.data.length) {
+      return this.props.renderNoMoreCards();
+    }
+
+    return this.props.data
+      .map((item, i) => {
+        if (i < this.state.index) {
+          return null;
+        }
+
+        if (i === this.state.index) {
+          return (
+            <Animated.View
+              key={item.id}
+              style={[this.getCardStyle(), styles.cardStyle, styles.deck]}
+              {...this.state.panResponder.panHandlers}
+            >
+              {this.props.renderCard(item)}
+            </Animated.View>
+          );
+        }
+
         return (
           <Animated.View
             key={item.id}
-            style={this.getCardStyle()}
-            {...this.state.panResponder.panHandlers}
+            style={[styles.cardStyle, { top: 10 * (i - this.state.index) }]}
           >
             {this.props.renderCard(item)}
           </Animated.View>
         );
-      }
-
-      return this.props.renderCard(item);
-    });
+      })
+      .reverse();
   }
 
   render() {
-    return <View>{this.renderCards()}</View>;
+    return (
+      <SafeAreaView forceInset={{ top: "always" }}>
+        {this.renderCards()}
+      </SafeAreaView>
+    );
   }
 }
+
+const styles = {
+  cardStyle: {
+    position: "absolute",
+    alignself:"center",
+    width: SCREEN_WIDTH,
+  },
+  deck: {
+    alignitems: "bottom",
+  },
+};
 export default Deck;
